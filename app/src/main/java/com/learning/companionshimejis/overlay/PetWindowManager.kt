@@ -80,7 +80,9 @@ class PetWindowManager(val context: Context) {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val metrics = windowManager.currentWindowMetrics
             val insets =
-                    metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+                    metrics.windowInsets.getInsets(
+                            WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                    )
             android.graphics.Rect(
                     insets.left,
                     insets.top,

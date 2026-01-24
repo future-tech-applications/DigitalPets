@@ -4,10 +4,10 @@ import android.content.Context
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.PetWindowManager
 import com.learning.companionshimejis.persistence.PetState
 import kotlin.math.abs
-import kotlin.random.Random
 
 class PetTouchHandler(
         context: Context,
@@ -45,6 +45,7 @@ class PetTouchHandler(
             MotionEvent.ACTION_DOWN -> {
                 lastTouchX = event.rawX
                 lastTouchY = event.rawY
+                petState.isDragging = true
                 petState.dx = 0
                 petState.dy = 0
                 return true
@@ -54,8 +55,20 @@ class PetTouchHandler(
                 val deltaY = (event.rawY - lastTouchY).toInt()
 
                 if (abs(deltaX) > 5 || abs(deltaY) > 5) {
-                    petState.x += deltaX
-                    petState.y += deltaY
+                    val bounds = petWindowManager.getUsableBounds()
+
+                    // Update and clamp positions
+                    petState.x =
+                            (petState.x + deltaX).coerceIn(
+                                    bounds.left,
+                                    bounds.right - petState.params.width
+                            )
+                    petState.y =
+                            (petState.y + deltaY).coerceIn(
+                                    bounds.top,
+                                    bounds.bottom - petState.params.height
+                            )
+
                     petState.params.x = petState.x
                     petState.params.y = petState.y
 
@@ -71,9 +84,10 @@ class PetTouchHandler(
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                petState.isDragging = false
                 if (!petState.isMenuOpen) {
-                    petState.dx = if (Random.nextBoolean()) 5 else -5
-                    petState.dy = if (Random.nextBoolean()) 5 else -5
+                    petState.behavior = PetBehavior.FALL
+                    petState.behaviorTimer = 0
                 }
                 return true
             }

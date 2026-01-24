@@ -1,52 +1,96 @@
 package com.learning.companionshimejis.physics
 
+import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.PetWindowManager
 import com.learning.companionshimejis.persistence.PetState
+import kotlin.random.Random
 
 /**
- * Handles the physics of the pets in the overlay manager and updates their positions.
+ * Handles the physics and behavior of the pets in the overlay manager and updates their positions.
  */
 class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
     fun updatePhysics(activePets: List<PetState>, animationSpeedMultiplier: Float) {
         val bounds = petWindowManager.getUsableBounds()
-        val screenWidth = bounds.width()
-        val screenHeight = bounds.height()
+
+        // Use absolute boundaries for screen awareness
+        val minX = bounds.left
+        val maxX = bounds.right
+        val minY = bounds.top
+        val maxY = bounds.bottom
 
         activePets.forEach { pet ->
-            val moveX = (pet.dx * animationSpeedMultiplier).toInt()
-            val moveY = (pet.dy * animationSpeedMultiplier).toInt()
+            if (pet.isMenuOpen || pet.isDragging) return@forEach
 
-            val finalDx =
-                    if (moveX == 0 && pet.dx != 0 && animationSpeedMultiplier > 0) {
-                        if (pet.dx > 0) 1 else -1
-                    } else moveX
-            val finalDy =
-                    if (moveY == 0 && pet.dy != 0 && animationSpeedMultiplier > 0) {
-                        if (pet.dy > 0) 1 else -1
-                    } else moveY
+            // Increment behavioral timer
+            pet.behaviorTimer += 16 // Approx ms per tick
 
-            pet.x += finalDx
-            pet.y += finalDy
+            // State Logic
+            when (pet.behavior) {
+                PetBehavior.FALL -> {
+                    pet.dy = (10 * animationSpeedMultiplier).toInt()
+                    pet.dx = 0
+                    pet.y += pet.dy
 
-            val petWidth = pet.params.width
-            val petHeight = pet.params.height
+                    // Ground collision (maxY)
+                    if (pet.y + pet.params.height >= maxY) {
+                        pet.y = maxY - pet.params.height
+                        pet.behavior = PetBehavior.getRandomMovement()
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.WALK_LEFT -> {
+                    pet.dx = (-4 * animationSpeedMultiplier).toInt()
+                    pet.dy = 0
+                    pet.x += pet.dx
 
-            // Bounce logic
-            if (pet.x <= 0) {
-                pet.x = 0
-                pet.dx *= -1
-            } else if (pet.x + petWidth >= screenWidth) {
-                pet.x = screenWidth - petWidth
-                pet.dx *= -1
-            }
+                    // Left wall collision (minX) or random transition
+                    if (pet.x <= minX) {
+                        pet.x = minX
+                        pet.behavior = PetBehavior.WALK_RIGHT
+                        pet.behaviorTimer = 0
+                    } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
+                        pet.behavior = PetBehavior.IDLE
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.WALK_RIGHT -> {
+                    pet.dx = (4 * animationSpeedMultiplier).toInt()
+                    pet.dy = 0
+                    pet.x += pet.dx
 
-            if (pet.y <= 0) {
-                pet.y = 0
-                pet.dy *= -1
-            } else if (pet.y + petHeight >= screenHeight) {
-                pet.y = screenHeight - petHeight
-                pet.dy *= -1
+                    // Right wall collision (maxX) or random transition
+                    if (pet.x + pet.params.width >= maxX) {
+                        pet.x = maxX - pet.params.width
+                        pet.behavior = PetBehavior.WALK_LEFT
+                        pet.behaviorTimer = 0
+                    } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
+                        pet.behavior = PetBehavior.IDLE
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.IDLE -> {
+                    pet.dx = 0
+                    pet.dy = 0
+                    // Transition to movement after random time
+                    if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.05f) {
+                        pet.behavior = PetBehavior.getRandomMovement()
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.NONE -> {
+                    pet.dx = 0
+                    pet.dy = 0
+                    // Quickly transition to active life
+                    if (pet.behaviorTimer > 500) {
+                        pet.behavior = PetBehavior.getRandomMovement()
+                        pet.behaviorTimer = 0
+                    }
+                }
+                else -> {
+                    // Start falling if state is unsupported
+                    pet.behavior = PetBehavior.FALL
+                }
             }
 
             pet.params.x = pet.x

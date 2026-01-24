@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import com.learning.companionshimejis.data.model.Pet
+import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.interaction.PetTouchHandler
 import com.learning.companionshimejis.overlay.FloatingPetView
 import com.learning.companionshimejis.overlay.PetOptionsOverlayMenuManager
@@ -11,15 +12,13 @@ import com.learning.companionshimejis.overlay.PetWindowManager
 import com.learning.companionshimejis.persistence.PetState
 import kotlin.random.Random
 
-/**
- * Helps to manage the pets to add, remove, and update them in the overlay.
- */
+/** Helps to manage the pets to add, remove, and update them in the overlay. */
 class PetManager(
-    private val context: Context,
-    private val petWindowManager: PetWindowManager,
-    private val menuManager: PetOptionsOverlayMenuManager,
-    private val onPetCountChanged: (Boolean) -> Unit,
-    private val onPetRemoved: (PetState) -> Unit
+        private val context: Context,
+        private val petWindowManager: PetWindowManager,
+        private val menuManager: PetOptionsOverlayMenuManager,
+        private val onPetCountChanged: (Boolean) -> Unit,
+        private val onPetRemoved: (PetState) -> Unit
 ) {
 
     val activePets = mutableListOf<PetState>()
@@ -59,8 +58,10 @@ class PetManager(
                         params = params,
                         x = startX,
                         y = startY,
-                        dx = if (Random.nextBoolean()) 5 else -5,
-                        dy = if (Random.nextBoolean()) 5 else -5,
+                        dx = 0,
+                        dy = 0,
+                        behavior = PetBehavior.NONE,
+                        behaviorTimer = 0
                 )
 
         petView.setOnTouchListener(
