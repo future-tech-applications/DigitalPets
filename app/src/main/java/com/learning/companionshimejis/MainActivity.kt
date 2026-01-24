@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent { CompanionShimejisTheme { MainScreen() } }
     }
-}
+} // test changes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
