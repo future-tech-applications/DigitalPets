@@ -44,10 +44,15 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     pet.dy = 0
                     pet.x += pet.dx
 
-                    // Left wall collision (minX) or random transition
+                    // Left wall collision
                     if (pet.x <= minX) {
                         pet.x = minX
-                        pet.behavior = PetBehavior.WALK_RIGHT
+                        // 30% chance to climb, otherwise turn back
+                        if (Random.nextFloat() < 0.5f) {
+                            pet.behavior = PetBehavior.CLIMB_EDGE
+                        } else {
+                            pet.behavior = PetBehavior.WALK_RIGHT
+                        }
                         pet.behaviorTimer = 0
                     } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
                         pet.behavior = PetBehavior.IDLE
@@ -59,13 +64,37 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     pet.dy = 0
                     pet.x += pet.dx
 
-                    // Right wall collision (maxX) or random transition
+                    // Right wall collision
                     if (pet.x + pet.params.width >= maxX) {
                         pet.x = maxX - pet.params.width
-                        pet.behavior = PetBehavior.WALK_LEFT
+                        // 30% chance to climb, otherwise turn back
+                        if (Random.nextFloat() < 0.5f) {
+                            pet.behavior = PetBehavior.CLIMB_EDGE
+                        } else {
+                            pet.behavior = PetBehavior.WALK_LEFT
+                        }
                         pet.behaviorTimer = 0
                     } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
                         pet.behavior = PetBehavior.IDLE
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.CLIMB_EDGE -> {
+                    pet.dx = 0
+                    pet.dy = (-3 * animationSpeedMultiplier).toInt() // Move UP
+                    pet.y += pet.dy
+
+                    // Boundary checks while climbing
+                    if (pet.y <= minY) {
+                        // Reached the top!
+                        pet.y = minY
+                        pet.behavior =
+                                PetBehavior
+                                        .getRandomMovement() // Start moving horizontally at the top
+                        pet.behaviorTimer = 0
+                    } else if (pet.behaviorTimer > 4000 && Random.nextFloat() < 0.01f) {
+                        // "Fatigue" - lose grip and fall
+                        pet.behavior = PetBehavior.FALL
                         pet.behaviorTimer = 0
                     }
                 }
