@@ -59,6 +59,9 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
                         pet.behavior = PetBehavior.IDLE
                         pet.behaviorTimer = 0
+                    } else if (Random.nextFloat() < 0.25f) { // 1/4th chance to Fly
+                        pet.behavior = PetBehavior.FLY
+                        pet.behaviorTimer = 0
                     }
                 }
                 PetBehavior.WALK_RIGHT -> {
@@ -78,6 +81,9 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                         pet.behaviorTimer = 0
                     } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
                         pet.behavior = PetBehavior.IDLE
+                        pet.behaviorTimer = 0
+                    } else if (Random.nextFloat() < 0.001f) { // Very rare chance to Fly
+                        pet.behavior = PetBehavior.FLY
                         pet.behaviorTimer = 0
                     }
                 }
@@ -161,6 +167,27 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     // Transition to movement after random time
                     if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.05f) {
                         pet.behavior = PetBehavior.getRandomMovement()
+                        pet.behaviorTimer = 0
+                    }
+                }
+                PetBehavior.FLY -> {
+                    pet.dx = 0 // Mostly vertical, maybe slight drift later
+                    pet.dy = (-4 * animationSpeedMultiplier).toInt() // Float Up
+                    pet.y += pet.dy
+
+                    // Ceiling Collision (minY) -> Land on Ceiling
+                    if (pet.y <= minY) {
+                        pet.y = minY
+                        pet.dy = 0
+                        // Start Walking on Ceiling
+                        pet.behavior =
+                                if (Random.nextBoolean()) PetBehavior.WALK_LEFT
+                                else PetBehavior.WALK_RIGHT
+                        pet.behaviorTimer = 0
+                    }
+                    // Exhaustion: Random mid-air Fall
+                    else if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.005f) {
+                        pet.behavior = PetBehavior.FALL
                         pet.behaviorTimer = 0
                     }
                 }
@@ -283,7 +310,6 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                         }
                     }
                 }
-
             }
         }
     }
