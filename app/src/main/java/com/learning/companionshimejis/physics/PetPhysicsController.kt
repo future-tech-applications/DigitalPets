@@ -11,6 +11,8 @@ import kotlin.random.Random
 class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
     fun updatePhysics(activePets: List<PetState>, animationSpeedMultiplier: Float) {
+        resolveCollisions(activePets)
+
         val bounds = petWindowManager.getUsableBounds()
 
         // Use absolute boundaries for screen awareness
@@ -184,6 +186,60 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                 petWindowManager.updateViewLayout(pet.view, pet.params)
             } catch (e: Exception) {
                 // View might be removed
+            }
+        }
+    }
+
+    private fun resolveCollisions(pets: List<PetState>) {
+        if (pets.size < 2) return
+
+        for (i in pets.indices) {
+            val petA = pets[i]
+            if (petA.isMenuOpen || petA.isDragging) continue
+
+            for (j in i + 1 until pets.size) {
+                val petB = pets[j]
+                if (petB.isMenuOpen || petB.isDragging) continue
+
+                // Check intersection
+                if (android.graphics.Rect.intersects(
+                                android.graphics.Rect(
+                                        petA.x,
+                                        petA.y,
+                                        petA.x + petA.params.width,
+                                        petA.y + petA.params.height
+                                ),
+                                android.graphics.Rect(
+                                        petB.x,
+                                        petB.y,
+                                        petB.x + petB.params.width,
+                                        petB.y + petB.params.height
+                                )
+                        )
+                ) {
+                    // Check if they are already reacting to avoid stickiness loops
+                    if (petA.behavior == PetBehavior.COLLIDE || petB.behavior == PetBehavior.COLLIDE
+                    )
+                            continue
+
+                    // Reaction Logic: Always Reverse (Bounce)
+                    // Simple approach: Flip DX for both
+                    petA.behavior =
+                            if (petA.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
+                            else PetBehavior.WALK_LEFT
+                    petB.behavior =
+                            if (petB.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
+                            else PetBehavior.WALK_LEFT
+
+                    // Add a small nudge to separate them immediately
+                    if (petA.x < petB.x) {
+                        petA.x -= 10
+                        petB.x += 10
+                    } else {
+                        petA.x += 10
+                        petB.x -= 10
+                    }
+                }
             }
         }
     }

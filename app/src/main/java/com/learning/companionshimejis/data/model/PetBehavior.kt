@@ -10,6 +10,7 @@ sealed class PetBehavior(val name: String) {
     object CLIMB_EDGE : PetBehavior("CLIMB_EDGE")
     object SLEEP : PetBehavior("SLEEP")
     object INTERACT : PetBehavior("INTERACT")
+    object COLLIDE : PetBehavior("COLLIDE")
 
     // Duration in milliseconds before considering a transition
     var duration: Long = 0
