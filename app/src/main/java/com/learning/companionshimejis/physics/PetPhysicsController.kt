@@ -10,16 +10,16 @@ import kotlin.random.Random
  */
 class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
+    val bounds = petWindowManager.getUsableBounds()
+
+    // Use absolute boundaries for screen awareness
+    val minX = bounds.left
+    val maxX = bounds.right
+    val minY = bounds.top
+    val maxY = bounds.bottom
+
     fun updatePhysics(activePets: List<PetState>, animationSpeedMultiplier: Float) {
-        resolveCollisions(activePets)
-
-        val bounds = petWindowManager.getUsableBounds()
-
-        // Use absolute boundaries for screen awareness
-        val minX = bounds.left
-        val maxX = bounds.right
-        val minY = bounds.top
-        val maxY = bounds.bottom
+        resolveCollisions(activePets, animationSpeedMultiplier)
 
         activePets.forEach { pet ->
             if (pet.isMenuOpen || pet.isDragging) return@forEach
@@ -190,7 +190,7 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
         }
     }
 
-    private fun resolveCollisions(pets: List<PetState>) {
+    private fun resolveCollisions(pets: List<PetState>, animationSpeedMultiplier: Float) {
         if (pets.size < 2) return
 
         for (i in pets.indices) {
@@ -222,24 +222,68 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     )
                             continue
 
-                    // Reaction Logic: Always Reverse (Bounce)
-                    // Simple approach: Flip DX for both
-                    petA.behavior =
-                            if (petA.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
-                            else PetBehavior.WALK_LEFT
-                    petB.behavior =
-                            if (petB.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
-                            else PetBehavior.WALK_LEFT
+                    // Reaction Logic
+                    val isClimbingCollision =
+                            petA.behavior == PetBehavior.CLIMB_EDGE ||
+                                    petB.behavior == PetBehavior.CLIMB_EDGE
 
-                    // Add a small nudge to separate them immediately
-                    if (petA.x < petB.x) {
-                        petA.x -= 10
-                        petB.x += 10
+                    if (isClimbingCollision) {
+                        // WALL COLLISION: Jump or Reverse
+                        // 50% chance to JUMP to other wall
+                        if (Random.nextBoolean()) {
+                            petA.behavior = PetBehavior.JUMP
+                            petB.behavior = PetBehavior.JUMP
+
+                            // Initial Jump Velocity (Out and Up)
+                            val jumpOutPower = (15 * animationSpeedMultiplier).toInt()
+                            val jumpUpPower = (-10 * animationSpeedMultiplier).toInt()
+
+                            val midScreen = (maxX + minX) / 2
+
+                            // Jump away from center? No, jump away from current wall.
+                            // If pet X is < midScreen, it's likely on Left Wall -> Jump Right (+)
+                            // If pet X > midScreen, it's likely on Right Wall -> Jump Left (-)
+                            petA.dx = if (petA.x < midScreen) jumpOutPower else -jumpOutPower
+                            petA.dy = jumpUpPower
+
+                            petB.dx = if (petB.x < midScreen) jumpOutPower else -jumpOutPower
+                            petB.dy = jumpUpPower
+                        } else {
+                            // 50% Polite Reverse (Climb down/up or stay? Reverse usually means swap
+                            // Up/Down)
+                            // Climbing reverse means changing dy.
+                            petA.dy = -petA.dy
+                            petB.dy = -petB.dy
+
+                            // Separate vertically
+                            if (petA.y < petB.y) {
+                                petA.y -= 10
+                                petB.y += 10
+                            } else {
+                                petA.y += 10
+                                petB.y -= 10
+                            }
+                        }
                     } else {
-                        petA.x += 10
-                        petB.x -= 10
+                        // GROUND COLLISION: Polite Reverse
+                        petA.behavior =
+                                if (petA.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
+                                else PetBehavior.WALK_LEFT
+                        petB.behavior =
+                                if (petB.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
+                                else PetBehavior.WALK_LEFT
+
+                        // Add a small nudge to separate them immediately
+                        if (petA.x < petB.x) {
+                            petA.x -= 10
+                            petB.x += 10
+                        } else {
+                            petA.x += 10
+                            petB.x -= 10
+                        }
                     }
                 }
+
             }
         }
     }
