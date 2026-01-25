@@ -81,19 +81,74 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                 }
                 PetBehavior.CLIMB_EDGE -> {
                     pet.dx = 0
-                    pet.dy = (-3 * animationSpeedMultiplier).toInt() // Move UP
+
+                    if (pet.dy == 0) {
+                        pet.dy =
+                                if (Random.nextFloat() < 0.25f) {
+                                    (3 * animationSpeedMultiplier).toInt() // DOWN
+                                } else {
+                                    (-3 * animationSpeedMultiplier).toInt() // UP
+                                }
+                    }
+
                     pet.y += pet.dy
 
-                    // Boundary checks while climbing
+                    // Boundary checks
                     if (pet.y <= minY) {
-                        // Reached the top!
+                        // Reached TOP
                         pet.y = minY
-                        pet.behavior =
-                                PetBehavior
-                                        .getRandomMovement() // Start moving horizontally at the top
+                        pet.behavior = PetBehavior.getRandomMovement()
                         pet.behaviorTimer = 0
-                    } else if (pet.behaviorTimer > 4000 && Random.nextFloat() < 0.01f) {
-                        // "Fatigue" - lose grip and fall
+                    } else if (pet.y + pet.params.height >= maxY) {
+                        // Reached BOTTOM (climbed down)
+                        pet.y = maxY - pet.params.height
+                        pet.behavior = PetBehavior.getRandomMovement()
+                        pet.behaviorTimer = 0
+                    } else {
+                        // Mid-climb events
+                        if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.02f) {
+                            // Trigger JUMP to opposite wall
+                            pet.behavior = PetBehavior.JUMP
+                            // Jump away from the wall
+                            pet.dx =
+                                    if (pet.x <= minX) (15 * animationSpeedMultiplier).toInt()
+                                    else (-15 * animationSpeedMultiplier).toInt()
+                            pet.dy = (-10 * animationSpeedMultiplier).toInt() // Initial upward arc
+                            pet.behaviorTimer = 0
+                        } else if (pet.behaviorTimer > 4000 && Random.nextFloat() < 0.005f) {
+                            // Fatigue -> Fall
+                            pet.behavior = PetBehavior.FALL
+                            pet.behaviorTimer = 0
+                        }
+                    }
+                }
+                PetBehavior.JUMP -> {
+                    // Apply horizontal velocity
+                    pet.x += pet.dx
+                    // Apply gravity to vertical velocity (Arc)
+                    pet.dy += (1 * animationSpeedMultiplier).toInt()
+                    pet.y += pet.dy
+
+                    // Collision: Opposite Wall
+                    if (pet.x <= minX) {
+                        pet.x = minX
+                        pet.behavior = PetBehavior.CLIMB_EDGE // Stick to wall
+                        pet.dy = 0 // Stop vertical momentum
+                        pet.behaviorTimer = 0
+                    } else if (pet.x + pet.params.width >= maxX) {
+                        pet.x = maxX - pet.params.width
+                        pet.behavior = PetBehavior.CLIMB_EDGE // Stick to wall
+                        pet.dy = 0
+                        pet.behaviorTimer = 0
+                    }
+                    // Collision: Floor
+                    else if (pet.y + pet.params.height >= maxY) {
+                        pet.y = maxY - pet.params.height
+                        pet.behavior = PetBehavior.getRandomMovement() // Landed
+                        pet.behaviorTimer = 0
+                    }
+                    // Low chance to "miss" and fall
+                    else if (Random.nextFloat() < 0.005f) {
                         pet.behavior = PetBehavior.FALL
                         pet.behaviorTimer = 0
                     }
