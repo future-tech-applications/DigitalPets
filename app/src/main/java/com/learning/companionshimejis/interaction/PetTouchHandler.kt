@@ -100,12 +100,19 @@ class PetTouchHandler(
                     // 2. Check Ground (Bottom)
                     else if (petState.y + petState.params.height >= bounds.bottom - snapDistance) {
                         petState.y = bounds.bottom - petState.params.height
-                        // Randomize direction to make it look active
                         petState.behavior =
                                 if (kotlin.random.Random.nextBoolean()) PetBehavior.WALK_LEFT
                                 else PetBehavior.WALK_RIGHT
                     }
-                    // 3. Falling (Mid-air)
+                    // 3. New: Check Ceiling (Top)
+                    else if (petState.y <= bounds.top + snapDistance) {
+                        petState.y = bounds.top
+                        // Walk on ceiling
+                        petState.behavior =
+                                if (kotlin.random.Random.nextBoolean()) PetBehavior.WALK_LEFT
+                                else PetBehavior.WALK_RIGHT
+                    }
+                    // 4. Falling (Mid-air)
                     else {
                         petState.behavior = PetBehavior.FALL
                     }

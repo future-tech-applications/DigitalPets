@@ -59,7 +59,7 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
                         pet.behavior = PetBehavior.IDLE
                         pet.behaviorTimer = 0
-                    } else if (Random.nextFloat() < 0.25f) { // 1/4th chance to Fly
+                    } else if (Random.nextFloat() < 0.1f) { // 10% chance to Fly
                         pet.behavior = PetBehavior.FLY
                         pet.behaviorTimer = 0
                     }
@@ -250,64 +250,49 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                             continue
 
                     // Reaction Logic
+
+                    // 1. Ceiling Collision (Anti-Congestion)
+                    // If pets bump into each other on the status bar, they lose grip and fall.
+                    // This handles both the "Walking on Ceiling" traffic and "Corner Deadlocks".
+                    val ceilingThreshold = minY + 10
+                    val isCeilingCollision =
+                            petA.y <= ceilingThreshold || petB.y <= ceilingThreshold
+
+                    if (isCeilingCollision) {
+                        petA.behavior = PetBehavior.FALL
+                        petB.behavior = PetBehavior.FALL
+                        petA.behaviorTimer = 0
+                        petB.behaviorTimer = 0
+                        continue
+                    }
+
+                    // 2. Wall Collision (Climbing) -> Deterministic Jump (Parkour)
                     val isClimbingCollision =
                             petA.behavior == PetBehavior.CLIMB_EDGE ||
                                     petB.behavior == PetBehavior.CLIMB_EDGE
 
                     if (isClimbingCollision) {
-                        // WALL COLLISION: Jump or Reverse
-                        // 50% chance to JUMP to other wall
-                        if (Random.nextBoolean()) {
-                            petA.behavior = PetBehavior.JUMP
-                            petB.behavior = PetBehavior.JUMP
+                        // WALL COLLISION: Always Jump to opposite wall
+                        petA.behavior = PetBehavior.JUMP
+                        petB.behavior = PetBehavior.JUMP
 
-                            // Initial Jump Velocity (Out and Up)
-                            val jumpOutPower = (15 * animationSpeedMultiplier).toInt()
-                            val jumpUpPower = (-10 * animationSpeedMultiplier).toInt()
+                        // Initial Jump Velocity
+                        val jumpOutPower = (15 * animationSpeedMultiplier).toInt()
+                        val jumpUpPower = (-10 * animationSpeedMultiplier).toInt()
 
-                            val midScreen = (maxX + minX) / 2
+                        val midScreen = (maxX + minX) / 2
 
-                            // Jump away from center? No, jump away from current wall.
-                            // If pet X is < midScreen, it's likely on Left Wall -> Jump Right (+)
-                            // If pet X > midScreen, it's likely on Right Wall -> Jump Left (-)
-                            petA.dx = if (petA.x < midScreen) jumpOutPower else -jumpOutPower
-                            petA.dy = jumpUpPower
+                        // Jump away from current wall
+                        petA.dx = if (petA.x < midScreen) jumpOutPower else -jumpOutPower
+                        petA.dy = jumpUpPower
 
-                            petB.dx = if (petB.x < midScreen) jumpOutPower else -jumpOutPower
-                            petB.dy = jumpUpPower
-                        } else {
-                            // 50% Polite Reverse (Climb down/up or stay? Reverse usually means swap
-                            // Up/Down)
-                            // Climbing reverse means changing dy.
-                            petA.dy = -petA.dy
-                            petB.dy = -petB.dy
-
-                            // Separate vertically
-                            if (petA.y < petB.y) {
-                                petA.y -= 10
-                                petB.y += 10
-                            } else {
-                                petA.y += 10
-                                petB.y -= 10
-                            }
-                        }
-                    } else {
-                        // GROUND COLLISION: Polite Reverse
-                        petA.behavior =
-                                if (petA.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
-                                else PetBehavior.WALK_LEFT
-                        petB.behavior =
-                                if (petB.behavior == PetBehavior.WALK_LEFT) PetBehavior.WALK_RIGHT
-                                else PetBehavior.WALK_LEFT
-
-                        // Add a small nudge to separate them immediately
-                        if (petA.x < petB.x) {
-                            petA.x -= 10
-                            petB.x += 10
-                        } else {
-                            petA.x += 10
-                            petB.x -= 10
-                        }
+                        petB.dx = if (petB.x < midScreen) jumpOutPower else -jumpOutPower
+                        petB.dy = jumpUpPower
+                    }
+                    // 3. Ground Collision -> Pass Through (Ghost Mode)
+                    // Do NOTHING. Let them overlap.
+                    else {
+                        // No reaction code here.
                     }
                 }
             }
