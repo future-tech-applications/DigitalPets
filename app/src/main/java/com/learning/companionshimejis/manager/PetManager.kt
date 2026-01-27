@@ -25,11 +25,16 @@ class PetManager(
 
     fun addPet(pet: Pet, position: Pair<Int, Int>?, currentScale: Float, currentOpacity: Float) {
         val petView = FloatingPetView(context)
-        petView.setPetImage(pet.resId)
+        // Initialize with default frame (Row 0, Col 0)
+        val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, pet.resId)
+        val frameWidth = bitmap.width / 4
+        val frameHeight = bitmap.height / 4
+        petView.updateFrame(bitmap, 0, 0, frameWidth, frameHeight)
+
         petView.updateAlpha(currentOpacity)
 
         val density = context.resources.displayMetrics.density
-        val baseSize = (80 * density).toInt()
+        val baseSize = (64 * density).toInt()
         val size = (baseSize * currentScale).toInt()
 
         val params = petWindowManager.createPetLayoutParams(size)
@@ -110,7 +115,7 @@ class PetManager(
 
     fun updatePetsScale(scale: Float) {
         val density = context.resources.displayMetrics.density
-        val baseSize = (80 * density).toInt()
+        val baseSize = (64 * density).toInt()
         val newSize = (baseSize * scale).toInt()
 
         activePets.forEach { pet ->
