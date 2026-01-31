@@ -7,40 +7,60 @@ import kotlin.random.Random
 
 /**
  * Handles the physics and behavior of the pets in the overlay manager and updates their positions.
+ * @param petWindowManager The window manager for the pets.
  */
 class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
+    // Get usable bounds for pets to via Window Manager.
     val bounds = petWindowManager.getUsableBounds()
 
-    // Use absolute boundaries for screen awareness
+    // Use absolute boundaries for screen awareness.
+    // These values will be used to determine the boundaries of the pets.
     val minX = bounds.left
     val maxX = bounds.right
     val minY = bounds.top
     val maxY = bounds.bottom
 
+    /**
+     * Updates the physics of the pets. It also handles the collision detection between the pets.
+     * @param activePets The list of active pets.
+     * @param animationSpeedMultiplier The animation speed multiplier. It affects the speed of the pets.
+     */
     fun updatePhysics(activePets: List<PetState>, animationSpeedMultiplier: Float) {
+        // on each tick, check for collisions.
         resolveCollisions(activePets, animationSpeedMultiplier)
 
+        // For each pet in the list, update its position and state.
+        // Handle their behavior and movement.
         activePets.forEach { pet ->
+            // Ignore update if menu is open or pet is being dragged
             if (pet.isMenuOpen || pet.isDragging) return@forEach
 
-            // Increment behavioral timer
+            // on each tick, update the pet's position by its velocity.
             pet.behaviorTimer += 16 // Approx ms per tick
 
-            // State Logic
+            // Below is the logic for each pet's behavior.
             when (pet.behavior) {
+                // FALL, WALK_LEFT, WALK_RIGHT, CLIMB_EDGE, JUMP, IDLE, FLY, NONE
                 PetBehavior.FALL -> {
+                    // Apply gravity to vertical velocity.
                     pet.dy = (10 * animationSpeedMultiplier).toInt()
+
+                    // stop the horizontal velocity of the pet.
                     pet.dx = 0
+
+                    // Apply the vertical velocity to the pet's position.
+                    // It means it fallen and finally landed.
                     pet.y += pet.dy
 
-                    // Ground collision (maxY)
+                    // Ground collision (maxY).
                     if (pet.y + pet.params.height >= maxY) {
                         pet.y = maxY - pet.params.height
                         pet.behavior = PetBehavior.getRandomMovement()
                         pet.behaviorTimer = 0
                     }
                 }
+
                 PetBehavior.WALK_LEFT -> {
                     pet.dx = (-4 * animationSpeedMultiplier).toInt()
                     pet.dy = 0
@@ -49,7 +69,7 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     // Left wall collision
                     if (pet.x <= minX) {
                         pet.x = minX
-                        // 30% chance to climb, otherwise turn back
+                        // 50% chance to climb, otherwise turn back
                         if (Random.nextFloat() < 0.5f) {
                             pet.behavior = PetBehavior.CLIMB_EDGE
                         } else {
@@ -64,6 +84,7 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                         pet.behaviorTimer = 0
                     }
                 }
+
                 PetBehavior.WALK_RIGHT -> {
                     pet.dx = (4 * animationSpeedMultiplier).toInt()
                     pet.dy = 0
@@ -72,7 +93,7 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                     // Right wall collision
                     if (pet.x + pet.params.width >= maxX) {
                         pet.x = maxX - pet.params.width
-                        // 30% chance to climb, otherwise turn back
+                        // 50% chance to climb, otherwise turn back
                         if (Random.nextFloat() < 0.5f) {
                             pet.behavior = PetBehavior.CLIMB_EDGE
                         } else {
@@ -87,9 +108,9 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                         pet.behaviorTimer = 0
                     }
                 }
+
                 PetBehavior.CLIMB_EDGE -> {
                     pet.dx = 0
-
                     if (pet.dy == 0) {
                         pet.dy =
                                 if (Random.nextFloat() < 0.25f) {
@@ -98,7 +119,6 @@ class PetPhysicsController(private val petWindowManager: PetWindowManager) {
                                     (-3 * animationSpeedMultiplier).toInt() // UP
                                 }
                     }
-
                     pet.y += pet.dy
 
                     // Boundary checks

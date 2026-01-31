@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import com.learning.companionshimejis.animation.PetAnimationController
 
 /**
  * #### <Service Lifecycle & Orchestration> Main Service which orchestrates all other components to
@@ -31,8 +32,7 @@ class MainService : Service() {
     private lateinit var animationEngine: PetAnimationEngine
     private lateinit var petOptionsOverlayMenuManager: PetOptionsOverlayMenuManager
     private lateinit var physicsController: PetPhysicsController
-    private lateinit var animationController:
-            com.learning.companionshimejis.animation.PetAnimationController
+    private lateinit var animationController: PetAnimationController
     private lateinit var sessionManager: PetSessionManager
     private lateinit var notificationHelper: ServiceNotificationHelper
     private lateinit var petManager: PetManager

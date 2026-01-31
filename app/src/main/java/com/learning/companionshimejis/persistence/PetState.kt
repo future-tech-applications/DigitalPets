@@ -4,7 +4,26 @@ import android.view.WindowManager
 import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.FloatingPetView
 
-/** ## Character Part (State Model) ## */
+/**
+ * Represents the state of a pet in the overlay.
+ * @param id The unique identifier of the pet.
+ * @param view The view of the pet.
+ * @param params The layout parameters of the pet.
+ * @param x The x-coordinate of the pet.
+ * @param y The y-coordinate of the pet.
+ * @param dx The x-velocity of the pet.
+ * @param dy The y-velocity of the pet.
+ * @param isMenuOpen Whether the pet's menu is open.
+ * @param isDragging Whether the pet is being dragged.
+ * @param behavior The current behavior of the pet. Defaults to [PetBehavior.NONE].
+ * @param behaviorTimer The timer for the current behavior which indicates how long the pet has
+ * been in the current behavior. Defaults to 0.
+ * @param animationTimer The timer for the current animation which indicates how long the pet has
+ * been in the current animation. Defaults to 0.
+ * @param currentFrameIndex The index of the current frame in the animation. Defaults to 0.
+ * @param lastBehavior The last behavior the pet was in. Defaults to [PetBehavior.NONE].
+ * @param currentAnimation The current animation of the pet. Defaults to null.
+ */
 data class PetState(
         val id: String,
         val view: FloatingPetView,
