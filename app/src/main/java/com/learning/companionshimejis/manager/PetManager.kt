@@ -27,6 +27,7 @@ class PetManager(
         val petView = FloatingPetView(context)
         // Initialize with default frame (Row 0, Col 0)
         val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, pet.resId)
+
         val frameWidth = bitmap.width / 4
         val frameHeight = bitmap.height / 4
         petView.updateFrame(bitmap, 0, 0, frameWidth, frameHeight)

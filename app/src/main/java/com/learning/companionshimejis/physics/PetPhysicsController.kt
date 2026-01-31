@@ -1,10 +1,10 @@
 package com.learning.companionshimejis.physics
 
+import com.learning.companionshimejis.data.model.EmoteType
 import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.PetWindowManager
 import com.learning.companionshimejis.persistence.PetState
 import kotlin.random.Random
-
 
 private const val TICK_MS = 16
 
@@ -12,17 +12,19 @@ private const val TICK_MS = 16
  * Responsible for updating the physics of the pets.
  * @param petWindowManager The window manager for the pets.
  */
-class PetPhysicsController(
-    private val petWindowManager: PetWindowManager
-) {
+class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
-    private val bounds get() = petWindowManager.getUsableBounds()
+    private val bounds
+        get() = petWindowManager.getUsableBounds()
 
-    private val minX get() = bounds.left
-    private val maxX get() = bounds.right
-    private val minY get() = bounds.top
-    private val maxY get() = bounds.bottom
-
+    private val minX
+        get() = bounds.left
+    private val maxX
+        get() = bounds.right
+    private val minY
+        get() = bounds.top
+    private val maxY
+        get() = bounds.bottom
 
     /**
      * Updates the physics of the pets.
@@ -44,15 +46,15 @@ class PetPhysicsController(
             if (pet.isDragging || pet.isMenuOpen) return@forEach
 
             when (pet.behavior) {
-                PetBehavior.FALL       -> updateFall(pet, speed)
-                PetBehavior.WALK_LEFT  -> updateWalkLeft(pet, speed)
+                PetBehavior.FALL -> updateFall(pet, speed)
+                PetBehavior.WALK_LEFT -> updateWalkLeft(pet, speed)
                 PetBehavior.WALK_RIGHT -> updateWalkRight(pet, speed)
                 PetBehavior.CLIMB_EDGE -> updateClimbEdge(pet, speed)
-                PetBehavior.JUMP       -> updateJump(pet, speed)
-                PetBehavior.IDLE       -> updateIdle(pet)
-                PetBehavior.FLY        -> updateFly(pet, speed)
-                PetBehavior.NONE       -> tryChange(pet, PetBehavior.FALL)
-                else                   -> tryChange(pet, PetBehavior.FALL)
+                PetBehavior.JUMP -> updateJump(pet, speed)
+                PetBehavior.IDLE -> updateIdle(pet)
+                PetBehavior.FLY -> updateFly(pet, speed)
+                PetBehavior.NONE -> tryChange(pet, PetBehavior.FALL)
+                else -> tryChange(pet, PetBehavior.FALL)
             }
 
             clampToBounds(pet)
@@ -80,10 +82,7 @@ class PetPhysicsController(
 
         if (hitsLeftWall(pet)) {
             pet.x = minX
-            tryChange(
-                pet,
-                if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_RIGHT
-            )
+            tryChange(pet, if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_RIGHT)
         } else if (pet.behaviorTimer > 3000 && chance(0.02f)) {
             tryChange(pet, PetBehavior.IDLE)
         }
@@ -96,10 +95,7 @@ class PetPhysicsController(
 
         if (hitsRightWall(pet)) {
             pet.x = maxX - pet.params.width
-            tryChange(
-                pet,
-                if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_LEFT
-            )
+            tryChange(pet, if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_LEFT)
         } else if (pet.behaviorTimer > 3000 && chance(0.02f)) {
             tryChange(pet, PetBehavior.IDLE)
         }
@@ -109,8 +105,7 @@ class PetPhysicsController(
         pet.dx = 0
 
         if (pet.dy == 0) {
-            pet.dy = if (chance(0.25f)) (3 * speed).toInt()
-            else (-3 * speed).toInt()
+            pet.dy = if (chance(0.25f)) (3 * speed).toInt() else (-3 * speed).toInt()
         }
 
         pet.y += pet.dy
@@ -165,8 +160,8 @@ class PetPhysicsController(
         if (hitsCeiling(pet)) {
             pet.y = minY
             tryChange(
-                pet,
-                if (Random.nextBoolean()) PetBehavior.WALK_LEFT else PetBehavior.WALK_RIGHT
+                    pet,
+                    if (Random.nextBoolean()) PetBehavior.WALK_LEFT else PetBehavior.WALK_RIGHT
             )
         } else if (pet.behaviorTimer > 2000 && chance(0.005f)) {
             tryChange(pet, PetBehavior.FALL)
@@ -196,8 +191,7 @@ class PetPhysicsController(
                 }
 
                 // Climb collision → asymmetric jump
-                if (a.behavior == PetBehavior.CLIMB_EDGE &&
-                    b.behavior == PetBehavior.CLIMB_EDGE) {
+                if (a.behavior == PetBehavior.CLIMB_EDGE && b.behavior == PetBehavior.CLIMB_EDGE) {
 
                     startJump(a, speed)
                     tryChange(b, PetBehavior.FALL)
@@ -213,13 +207,32 @@ class PetPhysicsController(
         pet.behavior = next
         pet.behaviorTimer = 0
         pet.behaviorChangedThisTick = true
+
+        // Trigger Emote on certain transitions
+        if (next == PetBehavior.SLEEP) {
+            triggerEmote(pet, EmoteType.SLEEPY)
+        } else if (chance(0.05f)) {
+            triggerRandomEmote(pet)
+        }
+    }
+
+    private fun triggerEmote(pet: PetState, emote: EmoteType) {
+        pet.currentEmote = emote
+        pet.emoteTimer = 0
+    }
+
+    private fun triggerRandomEmote(pet: PetState) {
+        val emotes = EmoteType.values().filter { it != EmoteType.NONE }
+        triggerEmote(pet, emotes.random())
     }
 
     private fun startJump(pet: PetState, speed: Float) {
         tryChange(pet, PetBehavior.JUMP)
-        pet.dx = if (pet.x < (maxX + minX) / 2)
-            (15 * speed).toInt() else (-15 * speed).toInt()
+        pet.dx = if (pet.x < (maxX + minX) / 2) (15 * speed).toInt() else (-15 * speed).toInt()
         pet.dy = (-10 * speed).toInt()
+
+        // Surprise emote on jump!
+        if (chance(0.3f)) triggerEmote(pet, EmoteType.SURPRISED)
     }
 
     private fun stickToWall(pet: PetState, x: Int) {
@@ -236,10 +249,10 @@ class PetPhysicsController(
     }
 
     private fun intersects(a: PetState, b: PetState) =
-        android.graphics.Rect.intersects(
-            android.graphics.Rect(a.x, a.y, a.x + a.params.width, a.y + a.params.height),
-            android.graphics.Rect(b.x, b.y, b.x + b.params.width, b.y + b.params.height)
-        )
+            android.graphics.Rect.intersects(
+                    android.graphics.Rect(a.x, a.y, a.x + a.params.width, a.y + a.params.height),
+                    android.graphics.Rect(b.x, b.y, b.x + b.params.width, b.y + b.params.height)
+            )
 
     private fun hitsLeftWall(p: PetState) = p.x <= minX
     private fun hitsRightWall(p: PetState) = p.x + p.params.width >= maxX

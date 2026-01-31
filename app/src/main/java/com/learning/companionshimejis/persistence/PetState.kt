@@ -1,6 +1,8 @@
 package com.learning.companionshimejis.persistence
 
 import android.view.WindowManager
+import com.learning.companionshimejis.data.model.EmoteType
+import com.learning.companionshimejis.data.model.PetAnimation
 import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.FloatingPetView
 
@@ -17,8 +19,8 @@ import com.learning.companionshimejis.overlay.FloatingPetView
  * @param isDragging Whether the pet is being dragged.
  * @param behaviorChangedThisTick Whether the pet's behavior has changed this tick.
  * @param behavior The current behavior of the pet. Defaults to [PetBehavior.NONE].
- * @param behaviorTimer The timer for the current behavior which indicates how long the pet has
- * been in the current behavior. Defaults to 0.
+ * @param behaviorTimer The timer for the current behavior which indicates how long the pet has been
+ * in the current behavior. Defaults to 0.
  * @param animationTimer The timer for the current animation which indicates how long the pet has
  * been in the current animation. Defaults to 0.
  * @param currentFrameIndex The index of the current frame in the animation. Defaults to 0.
@@ -45,13 +47,9 @@ data class PetState(
         var animationTimer: Long = 0,
         var currentFrameIndex: Int = 0,
         var lastBehavior: PetBehavior = PetBehavior.NONE,
-        var currentAnimation: com.learning.companionshimejis.data.model.PetAnimation? = null
-// We don't store the full PetAnimation object here to keep State serializable/lightweight if needed
-// later.
-// We will look it up in the Controller. But for runtime state, tracking the *ID* or just the frame
-// data is enough.
-// For now, let's keep it simple and just track the progress. The Controller will know *which*
-// animation to play based on behavior.
-// Actually, sometimes behavior != animation (e.g. idle variations).
-// Let's add a visualState identifier if needed, but 'behavior' is usually 1:1.
+        var currentAnimation: PetAnimation? = null,
+
+        // Emote State
+        var currentEmote: EmoteType = EmoteType.NONE,
+        var emoteTimer: Long = 0
 )
