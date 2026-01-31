@@ -15,6 +15,7 @@ import com.learning.companionshimejis.overlay.FloatingPetView
  * @param dy The y-velocity of the pet.
  * @param isMenuOpen Whether the pet's menu is open.
  * @param isDragging Whether the pet is being dragged.
+ * @param behaviorChangedThisTick Whether the pet's behavior has changed this tick.
  * @param behavior The current behavior of the pet. Defaults to [PetBehavior.NONE].
  * @param behaviorTimer The timer for the current behavior which indicates how long the pet has
  * been in the current behavior. Defaults to 0.
@@ -34,6 +35,9 @@ data class PetState(
         var dy: Int,
         var isMenuOpen: Boolean = false,
         var isDragging: Boolean = false,
+
+        // Behavior State
+        var behaviorChangedThisTick: Boolean = false,
         var behavior: PetBehavior = PetBehavior.NONE,
         var behaviorTimer: Long = 0,
 
