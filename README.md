@@ -55,20 +55,9 @@ We are committed to bringing these pets to life through incremental, ethical, an
 ### Phase 3: Emotional Continuity
 - **Mood Model**: Lightweight internal stats like Energy, Mood (Happy/Bored), and Affinity (bond with the user).
 - **Personality Profiles**: Distinct behavior multipliers (e.g., a "Lazy" pet vs. a "Playful" pet).
-- **Safe Local Memory**: Pets remember their favorite screen corners or interaction history without tracking sensitive data.
 
 ### Phase 4: Context Awareness
 - **System Signals**: Reacting to time of day, battery levels, charging state, and DND (Do Not Disturb) mode.
-- **Contextual Behavior**: Pets might sleep when the battery is low or hide politely when DND is enabled.
-
-### Phase 5: Aesthetic & User Experience
-- **Politeness UX**: Auto-hide during full-screen video and temporary hiding while typing.
-- **Visual Delight**: "Emote" bubbles (!, ?, ❤️, zZz) to communicate pet thoughts.
-- **Seasonal Themes**: Visual skins for holidays and special events.
-
-### Phase 6: Advanced Expansion
-- **Multi-Pet Interaction**: Pets acknowledging and reacting to each other.
-- **Community Packs**: Importing standard desktop Shimeji packs (XML/JSON) from external sources.
 
 ---
 
@@ -86,3 +75,90 @@ To maintain user trust, we will **never**:
 - Read your screen or track app usage.
 - Send push notification spam.
 - Require "Always-on" listening or microphones.
+
+---
+---
+
+# 🏗️ Technical Documentation
+
+This section provides a deep dive into the architecture, component layers, and internal logic that drive the experience for future developers.
+
+## Architecture Overview
+
+The project follows a **Service-driven Overlay Architecture**. Because the pets must persist while the user interacts with other applications, a `Foreground Service` acts as the primary orchestrator.
+
+### Component Interaction Flow (The "Game Loop")
+
+```mermaid
+graph TD
+    A[MainService] --> B[PetAnimationEngine]
+    B -->|60 FPS Heartbeat| C[PetPhysicsController]
+    B -->|60 FPS Heartbeat| D[PetAnimationController]
+    C -->|Update State| E[PetManager]
+    D -->|Update Visuals| E
+    E -->|Notify| F[FloatingPetView]
+    F -->|Draw Frame| G[Screen Overlay]
+```
+
+---
+
+## 📦 Component Layers & Intent
+
+The project is organized into functional packages, each with a specific intent:
+
+### 1. Service Layer (`service`)
+*   **Intent**: Orchestration and lifecycle persistence.
+*   **Core Class**: `MainService`
+*   **Responsibility**: Initializes all engines, handles system events (screen on/off), and manages the foreground notification.
+
+### 2. Management Layer (`manager`)
+*   **Intent**: Bridging logical states to physical views.
+*   **Core Class**: `PetManager`
+*   **Responsibility**: Handles adding/removing pets from the window, syncing their scale/opacity, and maintaining the list of `activePets`.
+
+### 3. Physics & Behavioral Logic (`physics`)
+*   **Intent**: Calculating motion and behavior transitions.
+*   **Core Class**: `PetPhysicsController`
+*   **Responsibility**: Calculates boundary collisions, gravity, and transition probabilities.
+
+### 4. Animation Engine (`animation`)
+*   **Intent**: Timing and frame-based sprite rendering.
+*   **Core Classes**: `PetAnimationEngine`, `PetAnimationController`
+*   **Responsibility**: `Engine` provides the `Handler`-driven loop; `Controller` slices sprite sheets dynamically based on behavior.
+
+### 5. Overlay & UI Layer (`overlay`)
+*   **Intent**: Managing WindowManager operations.
+*   **Core Classes**: `PetWindowManager`, `FloatingPetView`
+*   **Responsibility**: Abstraction for `WindowManager.addView/updateView`; custom `View` rendering via `Canvas` and `srcRect` slicing.
+
+---
+
+## 🛠️ Key Classes & Responsibilities
+
+| Class | Package | Responsibility |
+| :--- | :--- | :--- |
+| `MainService` | `service` | The root entry point; starts/stops the animation heartbeats. |
+| `PetManager` | `manager` | Factory for `PetState`; attaches `PetTouchHandler` to views. |
+| `PetPhysicsController` | `physics` | Updates `x, y` and `behavior` based on screen bounds and gravity. |
+| `PetAnimationController`| `animation` | Maps `PetBehavior` to sprite sheet rows and calculates dynamic frame indices. |
+| `PetWindowManager` | `overlay` | Handles `TYPE_APPLICATION_OVERLAY` params and safe view removal. |
+| `FloatingPetView` | `overlay` | Custom view that draws specific sprite frames using `Rect` slicing. |
+| `PetTouchHandler` | `interaction` | Distinguishes between drags, taps, and long-presses for interaction. |
+| `PetSessionManager` | `persistence` | Restores pet types and positions across service restarts. |
+
+---
+
+## 📈 Future Technical Improvements
+
+- **Behavioral Tree**: Moving from a simple State Machine to a Behavior Tree for more complex "living" pet logic.
+- **Smart Slicing**: Abstracting the Animation Controller to support variable grid sizes for importing 3rd party Shimeji packs.
+- **Reactive Collision**: Implementing AABB (Axis-Aligned Bounding Box) detection for pet-to-pet interaction.
+- **Performance Throttling**: Implementing a dynamic tick rate where Idle pets update less frequently.
+- **Dependency Injection**: Introducing Hilt/Dagger to manage component lifecycles properly.
+
+---
+
+## 🚫 Dev Constraints
+- **Low Memory**: Avoid excessive Bitmap allocations; cache sprite sheets in `bitmapCache`.
+- **Zero Jitters**: All View updates must happen on the Main Thread synchronized with the animation loop.
+- **Boundary Safety**: Always coerce positions within `usableBounds` (accounting for insets and notches).

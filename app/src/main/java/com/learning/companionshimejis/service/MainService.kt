@@ -21,11 +21,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * ## Service Lifecycle & Orchestration ##
- * Main Service which orchestrates all other components to overlay and
- * manage the characters/pets
+ * ## Service Lifecycle & Orchestration ## Main Service which orchestrates all other components to
+ * overlay and manage the characters/pets
  */
-
 class MainService : Service() {
 
     // Components
@@ -33,6 +31,8 @@ class MainService : Service() {
     private lateinit var animationEngine: PetAnimationEngine
     private lateinit var petOptionsOverlayMenuManager: PetOptionsOverlayMenuManager
     private lateinit var physicsController: PetPhysicsController
+    private lateinit var animationController:
+            com.learning.companionshimejis.animation.PetAnimationController
     private lateinit var sessionManager: PetSessionManager
     private lateinit var notificationHelper: ServiceNotificationHelper
     private lateinit var petManager: PetManager
@@ -52,9 +52,7 @@ class MainService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     /** ## System Part (Screen State) ## */
-    /**
-     * Listens for screen state changes and starts/stops the service accordingly.
-     */
+    /** Listens for screen state changes and starts/stops the service accordingly. */
     private val screenReceiver =
             ScreenStateReceiver(
                     onScreenOn = {
@@ -73,10 +71,12 @@ class MainService : Service() {
         // Initialize Components
         petWindowManager = PetWindowManager(this)
         physicsController = PetPhysicsController(petWindowManager)
+        animationController = com.learning.companionshimejis.animation.PetAnimationController(this)
         sessionManager = PetSessionManager(this)
         notificationHelper = ServiceNotificationHelper(this)
         animationEngine = PetAnimationEngine {
             physicsController.updatePhysics(petManager.activePets, petAnimationSpeedMultiplier)
+            animationController.updateAnimations(petManager.activePets)
         }
         // Initialize Pet Options Menu Manager
         petOptionsOverlayMenuManager =
@@ -113,38 +113,36 @@ class MainService : Service() {
 
         // Initialize Pet Manager with callbacks
         petManager =
-            PetManager(
-                this,
-                petWindowManager,
-                petOptionsOverlayMenuManager,
-                onPetCountChanged = { isNotEmpty ->
-                    if (isNotEmpty && isDeviceScreenOn) startAnimation() else stopAnimation()
-                },
-                onPetRemoved = { petState ->
-                    // Sync with Persistence
-                    val scope = CoroutineScope(Dispatchers.IO)
-                    scope.launch {
-                        PreferencesManager.setPetPosition(
-                            this@MainService,
-                            petState.id,
-                            petState.x,
-                            petState.y
-                        )
-
-                        PreferencesManager.getSelectedPets(this@MainService).collect {
-                                currentSet ->
-                            val newSet = currentSet.toMutableSet()
-                            if (newSet.remove(petState.id)) {
-                                PreferencesManager.setSelectedPets(
-                                    this@MainService,
-                                    newSet
+                PetManager(
+                        this,
+                        petWindowManager,
+                        petOptionsOverlayMenuManager,
+                        onPetCountChanged = { isNotEmpty ->
+                            if (isNotEmpty && isDeviceScreenOn) startAnimation()
+                            else stopAnimation()
+                        },
+                        onPetRemoved = { petState ->
+                            // Sync with Persistence
+                            val scope = CoroutineScope(Dispatchers.IO)
+                            scope.launch {
+                                PreferencesManager.setPetPosition(
+                                        this@MainService,
+                                        petState.id,
+                                        petState.x,
+                                        petState.y
                                 )
+
+                                PreferencesManager.getSelectedPets(this@MainService).collect {
+                                        currentSet ->
+                                    val newSet = currentSet.toMutableSet()
+                                    if (newSet.remove(petState.id)) {
+                                        PreferencesManager.setSelectedPets(this@MainService, newSet)
+                                    }
+                                    cancel()
+                                }
                             }
-                            cancel()
                         }
-                    }
-                }
-            )
+                )
 
         notificationHelper.createNotificationChannel()
         notificationHelper.startForeground()
@@ -173,7 +171,12 @@ class MainService : Service() {
                 intent,
                 CoroutineScope(Dispatchers.Main),
                 onPetRestored = { restored ->
-                    petManager.addPet(restored.pet, restored.position, petCurrentScale, petCurrentOpacity)
+                    petManager.addPet(
+                            restored.pet,
+                            restored.position,
+                            petCurrentScale,
+                            petCurrentOpacity
+                    )
                 },
                 onSessionEmpty = { stopSelf() }
         )
@@ -211,7 +214,6 @@ class MainService : Service() {
     private fun stopAnimation() {
         animationEngine.stop()
     }
-
 
     private fun snoozePets() {
         stopAnimation()

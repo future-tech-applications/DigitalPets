@@ -86,8 +86,47 @@ class PetTouchHandler(
             MotionEvent.ACTION_UP -> {
                 petState.isDragging = false
                 if (!petState.isMenuOpen) {
-                    petState.behavior = PetBehavior.FALL
+                    val bounds = petWindowManager.getUsableBounds()
+                    val snapDistance = 10 // Tolerance in pixels
+
+                    // 1. Check Walls (Left/Right)
+                    if (petState.x <= bounds.left + snapDistance) {
+                        petState.x = bounds.left
+                        petState.behavior = PetBehavior.CLIMB_EDGE
+                    } else if (petState.x + petState.params.width >= bounds.right - snapDistance) {
+                        petState.x = bounds.right - petState.params.width
+                        petState.behavior = PetBehavior.CLIMB_EDGE
+                    }
+                    // 2. Check Ground (Bottom)
+                    else if (petState.y + petState.params.height >= bounds.bottom - snapDistance) {
+                        petState.y = bounds.bottom - petState.params.height
+                        petState.behavior =
+                                if (kotlin.random.Random.nextBoolean()) PetBehavior.WALK_LEFT
+                                else PetBehavior.WALK_RIGHT
+                    }
+                    // 3. New: Check Ceiling (Top)
+                    else if (petState.y <= bounds.top + snapDistance) {
+                        petState.y = bounds.top
+                        // Walk on ceiling
+                        petState.behavior =
+                                if (kotlin.random.Random.nextBoolean()) PetBehavior.WALK_LEFT
+                                else PetBehavior.WALK_RIGHT
+                    }
+                    // 4. Falling (Mid-air)
+                    else {
+                        petState.behavior = PetBehavior.FALL
+                    }
+
                     petState.behaviorTimer = 0
+
+                    // Apply snap updates immediately
+                    try {
+                        petState.params.x = petState.x
+                        petState.params.y = petState.y
+                        petWindowManager.updateViewLayout(v, petState.params)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
                 return true
             }
