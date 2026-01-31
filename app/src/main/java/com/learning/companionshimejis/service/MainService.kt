@@ -21,8 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * ## Service Lifecycle & Orchestration ## Main Service which orchestrates all other components to
- * overlay and manage the characters/pets
+ * #### <Service Lifecycle & Orchestration> Main Service which orchestrates all other components to
+ * #### overlay and manage the characters/pets
  */
 class MainService : Service() {
 
