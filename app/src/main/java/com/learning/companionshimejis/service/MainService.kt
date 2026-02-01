@@ -3,6 +3,7 @@ package com.learning.companionshimejis.service
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import com.learning.companionshimejis.animation.PetAnimationController
 import com.learning.companionshimejis.animation.PetAnimationEngine
 import com.learning.companionshimejis.manager.PetManager
 import com.learning.companionshimejis.overlay.PetOptionsOverlayMenuManager
@@ -21,8 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * ## Service Lifecycle & Orchestration ## Main Service which orchestrates all other components to
- * overlay and manage the characters/pets
+ * #### <Service Lifecycle & Orchestration> Main Service which orchestrates all other components to
+ * #### overlay and manage the characters/pets
  */
 class MainService : Service() {
 
@@ -31,8 +32,7 @@ class MainService : Service() {
     private lateinit var animationEngine: PetAnimationEngine
     private lateinit var petOptionsOverlayMenuManager: PetOptionsOverlayMenuManager
     private lateinit var physicsController: PetPhysicsController
-    private lateinit var animationController:
-            com.learning.companionshimejis.animation.PetAnimationController
+    private lateinit var animationController: PetAnimationController
     private lateinit var sessionManager: PetSessionManager
     private lateinit var notificationHelper: ServiceNotificationHelper
     private lateinit var petManager: PetManager
@@ -71,12 +71,12 @@ class MainService : Service() {
         // Initialize Components
         petWindowManager = PetWindowManager(this)
         physicsController = PetPhysicsController(petWindowManager)
-        animationController = com.learning.companionshimejis.animation.PetAnimationController(this)
+        animationController = PetAnimationController(this)
         sessionManager = PetSessionManager(this)
         notificationHelper = ServiceNotificationHelper(this)
         animationEngine = PetAnimationEngine {
             physicsController.updatePhysics(petManager.activePets, petAnimationSpeedMultiplier)
-            animationController.updateAnimations(petManager.activePets)
+            animationController.updateAnimations(petManager.activePets, petAnimationSpeedMultiplier)
         }
         // Initialize Pet Options Menu Manager
         petOptionsOverlayMenuManager =

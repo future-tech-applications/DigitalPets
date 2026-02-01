@@ -1,301 +1,263 @@
 package com.learning.companionshimejis.physics
 
+import com.learning.companionshimejis.data.model.EmoteType
 import com.learning.companionshimejis.data.model.PetBehavior
 import com.learning.companionshimejis.overlay.PetWindowManager
 import com.learning.companionshimejis.persistence.PetState
 import kotlin.random.Random
 
+private const val TICK_MS = 16
+
 /**
- * Handles the physics and behavior of the pets in the overlay manager and updates their positions.
+ * Responsible for updating the physics of the pets.
+ * @param petWindowManager The window manager for the pets.
  */
 class PetPhysicsController(private val petWindowManager: PetWindowManager) {
 
-    val bounds = petWindowManager.getUsableBounds()
+    private val bounds
+        get() = petWindowManager.getUsableBounds()
 
-    // Use absolute boundaries for screen awareness
-    val minX = bounds.left
-    val maxX = bounds.right
-    val minY = bounds.top
-    val maxY = bounds.bottom
+    private val minX
+        get() = bounds.left
+    private val maxX
+        get() = bounds.right
+    private val minY
+        get() = bounds.top
+    private val maxY
+        get() = bounds.bottom
 
-    fun updatePhysics(activePets: List<PetState>, animationSpeedMultiplier: Float) {
-        resolveCollisions(activePets, animationSpeedMultiplier)
+    /**
+     * Updates the physics of the pets.
+     * @param pets The list of pets to update.
+     * @param speed The speed of the pets.
+     */
+    fun updatePhysics(pets: List<PetState>, speed: Float) {
 
-        activePets.forEach { pet ->
-            if (pet.isMenuOpen || pet.isDragging) return@forEach
+        // Reset per-tick decision locks
+        pets.forEach {
+            it.behaviorChangedThisTick = false
+            it.behaviorTimer += TICK_MS
+        }
 
-            // Increment behavioral timer
-            pet.behaviorTimer += 16 // Approx ms per tick
+        // Resolve behaviour when pet collides with other pets.
+        resolveCollisions(pets, speed)
 
-            // State Logic
+        pets.forEach { pet ->
+            if (pet.isDragging || pet.isMenuOpen) return@forEach
+
             when (pet.behavior) {
-                PetBehavior.FALL -> {
-                    pet.dy = (10 * animationSpeedMultiplier).toInt()
-                    pet.dx = 0
-                    pet.y += pet.dy
-
-                    // Ground collision (maxY)
-                    if (pet.y + pet.params.height >= maxY) {
-                        pet.y = maxY - pet.params.height
-                        pet.behavior = PetBehavior.getRandomMovement()
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.WALK_LEFT -> {
-                    pet.dx = (-4 * animationSpeedMultiplier).toInt()
-                    pet.dy = 0
-                    pet.x += pet.dx
-
-                    // Left wall collision
-                    if (pet.x <= minX) {
-                        pet.x = minX
-                        // 30% chance to climb, otherwise turn back
-                        if (Random.nextFloat() < 0.5f) {
-                            pet.behavior = PetBehavior.CLIMB_EDGE
-                        } else {
-                            pet.behavior = PetBehavior.WALK_RIGHT
-                        }
-                        pet.behaviorTimer = 0
-                    } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
-                        pet.behavior = PetBehavior.IDLE
-                        pet.behaviorTimer = 0
-                    } else if (Random.nextFloat() < 0.1f) { // 10% chance to Fly
-                        pet.behavior = PetBehavior.FLY
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.WALK_RIGHT -> {
-                    pet.dx = (4 * animationSpeedMultiplier).toInt()
-                    pet.dy = 0
-                    pet.x += pet.dx
-
-                    // Right wall collision
-                    if (pet.x + pet.params.width >= maxX) {
-                        pet.x = maxX - pet.params.width
-                        // 30% chance to climb, otherwise turn back
-                        if (Random.nextFloat() < 0.5f) {
-                            pet.behavior = PetBehavior.CLIMB_EDGE
-                        } else {
-                            pet.behavior = PetBehavior.WALK_LEFT
-                        }
-                        pet.behaviorTimer = 0
-                    } else if (pet.behaviorTimer > 3000 && Random.nextFloat() < 0.02f) {
-                        pet.behavior = PetBehavior.IDLE
-                        pet.behaviorTimer = 0
-                    } else if (Random.nextFloat() < 0.001f) { // Very rare chance to Fly
-                        pet.behavior = PetBehavior.FLY
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.CLIMB_EDGE -> {
-                    pet.dx = 0
-
-                    if (pet.dy == 0) {
-                        pet.dy =
-                                if (Random.nextFloat() < 0.25f) {
-                                    (3 * animationSpeedMultiplier).toInt() // DOWN
-                                } else {
-                                    (-3 * animationSpeedMultiplier).toInt() // UP
-                                }
-                    }
-
-                    pet.y += pet.dy
-
-                    // Boundary checks
-                    if (pet.y <= minY) {
-                        // Reached TOP
-                        pet.y = minY
-                        pet.behavior = PetBehavior.getRandomMovement()
-                        pet.behaviorTimer = 0
-                    } else if (pet.y + pet.params.height >= maxY) {
-                        // Reached BOTTOM (climbed down)
-                        pet.y = maxY - pet.params.height
-                        pet.behavior = PetBehavior.getRandomMovement()
-                        pet.behaviorTimer = 0
-                    } else {
-                        // Mid-climb events
-                        if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.02f) {
-                            // Trigger JUMP to opposite wall
-                            pet.behavior = PetBehavior.JUMP
-                            // Jump away from the wall
-                            pet.dx =
-                                    if (pet.x <= minX) (15 * animationSpeedMultiplier).toInt()
-                                    else (-15 * animationSpeedMultiplier).toInt()
-                            pet.dy = (-10 * animationSpeedMultiplier).toInt() // Initial upward arc
-                            pet.behaviorTimer = 0
-                        } else if (pet.behaviorTimer > 4000 && Random.nextFloat() < 0.005f) {
-                            // Fatigue -> Fall
-                            pet.behavior = PetBehavior.FALL
-                            pet.behaviorTimer = 0
-                        }
-                    }
-                }
-                PetBehavior.JUMP -> {
-                    // Apply horizontal velocity
-                    pet.x += pet.dx
-                    // Apply gravity to vertical velocity (Arc)
-                    pet.dy += (1 * animationSpeedMultiplier).toInt()
-                    pet.y += pet.dy
-
-                    // Collision: Opposite Wall
-                    if (pet.x <= minX) {
-                        pet.x = minX
-                        pet.behavior = PetBehavior.CLIMB_EDGE // Stick to wall
-                        pet.dy = 0 // Stop vertical momentum
-                        pet.behaviorTimer = 0
-                    } else if (pet.x + pet.params.width >= maxX) {
-                        pet.x = maxX - pet.params.width
-                        pet.behavior = PetBehavior.CLIMB_EDGE // Stick to wall
-                        pet.dy = 0
-                        pet.behaviorTimer = 0
-                    }
-                    // Collision: Floor
-                    else if (pet.y + pet.params.height >= maxY) {
-                        pet.y = maxY - pet.params.height
-                        pet.behavior = PetBehavior.getRandomMovement() // Landed
-                        pet.behaviorTimer = 0
-                    }
-                    // Low chance to "miss" and fall
-                    else if (Random.nextFloat() < 0.005f) {
-                        pet.behavior = PetBehavior.FALL
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.IDLE -> {
-                    pet.dx = 0
-                    pet.dy = 0
-                    // Transition to movement after random time
-                    if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.05f) {
-                        pet.behavior = PetBehavior.getRandomMovement()
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.FLY -> {
-                    pet.dx = 0 // Mostly vertical, maybe slight drift later
-                    pet.dy = (-4 * animationSpeedMultiplier).toInt() // Float Up
-                    pet.y += pet.dy
-
-                    // Ceiling Collision (minY) -> Land on Ceiling
-                    if (pet.y <= minY) {
-                        pet.y = minY
-                        pet.dy = 0
-                        // Start Walking on Ceiling
-                        pet.behavior =
-                                if (Random.nextBoolean()) PetBehavior.WALK_LEFT
-                                else PetBehavior.WALK_RIGHT
-                        pet.behaviorTimer = 0
-                    }
-                    // Exhaustion: Random mid-air Fall
-                    else if (pet.behaviorTimer > 2000 && Random.nextFloat() < 0.005f) {
-                        pet.behavior = PetBehavior.FALL
-                        pet.behaviorTimer = 0
-                    }
-                }
-                PetBehavior.NONE -> {
-                    pet.dx = 0
-                    pet.dy = 0
-                    // Quickly transition to active life
-                    if (pet.behaviorTimer > 500) {
-                        pet.behavior = PetBehavior.getRandomMovement()
-                        pet.behaviorTimer = 0
-                    }
-                }
-                else -> {
-                    // Start falling if state is unsupported
-                    pet.behavior = PetBehavior.FALL
-                }
+                PetBehavior.FALL -> updateFall(pet, speed)
+                PetBehavior.WALK_LEFT -> updateWalkLeft(pet, speed)
+                PetBehavior.WALK_RIGHT -> updateWalkRight(pet, speed)
+                PetBehavior.CLIMB_EDGE -> updateClimbEdge(pet, speed)
+                PetBehavior.JUMP -> updateJump(pet, speed)
+                PetBehavior.IDLE -> updateIdle(pet)
+                PetBehavior.FLY -> updateFly(pet, speed)
+                PetBehavior.NONE -> tryChange(pet, PetBehavior.FALL)
+                else -> tryChange(pet, PetBehavior.FALL)
             }
 
-            pet.params.x = pet.x
-            pet.params.y = pet.y
+            clampToBounds(pet)
+            petWindowManager.updateViewLayout(pet.view, pet.params)
+        }
+    }
 
-            try {
-                petWindowManager.updateViewLayout(pet.view, pet.params)
-            } catch (e: Exception) {
-                // View might be removed
+    // ────────────────────── BEHAVIOUR UPDATERS ──────────────────────
+
+    private fun updateFall(pet: PetState, speed: Float) {
+        pet.dx = 0
+        pet.dy = (10 * speed).toInt()
+        pet.y += pet.dy
+
+        if (hitsFloor(pet)) {
+            pet.y = maxY - pet.params.height
+            tryChange(pet, PetBehavior.getRandomMovement())
+        }
+    }
+
+    private fun updateWalkLeft(pet: PetState, speed: Float) {
+        pet.dx = (-4 * speed).toInt()
+        pet.dy = 0
+        pet.x += pet.dx
+
+        if (hitsLeftWall(pet)) {
+            pet.x = minX
+            tryChange(pet, if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_RIGHT)
+        } else if (pet.behaviorTimer > 3000 && chance(0.02f)) {
+            tryChange(pet, PetBehavior.IDLE)
+        }
+    }
+
+    private fun updateWalkRight(pet: PetState, speed: Float) {
+        pet.dx = (4 * speed).toInt()
+        pet.dy = 0
+        pet.x += pet.dx
+
+        if (hitsRightWall(pet)) {
+            pet.x = maxX - pet.params.width
+            tryChange(pet, if (chance(0.5f)) PetBehavior.CLIMB_EDGE else PetBehavior.WALK_LEFT)
+        } else if (pet.behaviorTimer > 3000 && chance(0.02f)) {
+            tryChange(pet, PetBehavior.IDLE)
+        }
+    }
+
+    private fun updateClimbEdge(pet: PetState, speed: Float) {
+        pet.dx = 0
+
+        if (pet.dy == 0) {
+            pet.dy = if (chance(0.25f)) (3 * speed).toInt() else (-3 * speed).toInt()
+        }
+
+        pet.y += pet.dy
+
+        when {
+            hitsCeiling(pet) -> {
+                pet.y = minY
+                tryChange(pet, PetBehavior.getRandomMovement())
+            }
+            hitsFloor(pet) -> {
+                pet.y = maxY - pet.params.height
+                tryChange(pet, PetBehavior.getRandomMovement())
+            }
+            pet.behaviorTimer > 2000 && chance(0.02f) -> {
+                startJump(pet, speed)
+            }
+            pet.behaviorTimer > 4000 && chance(0.005f) -> {
+                tryChange(pet, PetBehavior.FALL)
             }
         }
     }
 
-    private fun resolveCollisions(pets: List<PetState>, animationSpeedMultiplier: Float) {
+    private fun updateJump(pet: PetState, speed: Float) {
+        pet.x += pet.dx
+        pet.dy += (1 * speed).toInt()
+        pet.y += pet.dy
+
+        when {
+            hitsLeftWall(pet) -> stickToWall(pet, minX)
+            hitsRightWall(pet) -> stickToWall(pet, maxX - pet.params.width)
+            hitsFloor(pet) -> {
+                pet.y = maxY - pet.params.height
+                tryChange(pet, PetBehavior.getRandomMovement())
+            }
+            chance(0.005f) -> tryChange(pet, PetBehavior.FALL)
+        }
+    }
+
+    private fun updateIdle(pet: PetState) {
+        pet.dx = 0
+        pet.dy = 0
+        if (pet.behaviorTimer > 2000 && chance(0.05f)) {
+            tryChange(pet, PetBehavior.getRandomMovement())
+        }
+    }
+
+    private fun updateFly(pet: PetState, speed: Float) {
+        pet.dx = 0
+        pet.dy = (-4 * speed).toInt()
+        pet.y += pet.dy
+
+        if (hitsCeiling(pet)) {
+            pet.y = minY
+            tryChange(
+                    pet,
+                    if (Random.nextBoolean()) PetBehavior.WALK_LEFT else PetBehavior.WALK_RIGHT
+            )
+        } else if (pet.behaviorTimer > 2000 && chance(0.005f)) {
+            tryChange(pet, PetBehavior.FALL)
+        }
+    }
+
+    // ────────────────────── COLLISIONS ──────────────────────
+
+    private fun resolveCollisions(pets: List<PetState>, speed: Float) {
         if (pets.size < 2) return
 
         for (i in pets.indices) {
-            val petA = pets[i]
-            if (petA.isMenuOpen || petA.isDragging) continue
+            val a = pets[i]
+            if (a.isDragging || a.isMenuOpen) continue
 
             for (j in i + 1 until pets.size) {
-                val petB = pets[j]
-                if (petB.isMenuOpen || petB.isDragging) continue
+                val b = pets[j]
+                if (b.isDragging || b.isMenuOpen) continue
 
-                // Check intersection
-                if (android.graphics.Rect.intersects(
-                                android.graphics.Rect(
-                                        petA.x,
-                                        petA.y,
-                                        petA.x + petA.params.width,
-                                        petA.y + petA.params.height
-                                ),
-                                android.graphics.Rect(
-                                        petB.x,
-                                        petB.y,
-                                        petB.x + petB.params.width,
-                                        petB.y + petB.params.height
-                                )
-                        )
-                ) {
-                    // Check if they are already reacting to avoid stickiness loops
-                    if (petA.behavior == PetBehavior.COLLIDE || petB.behavior == PetBehavior.COLLIDE
-                    )
-                            continue
+                if (!intersects(a, b)) continue
 
-                    // Reaction Logic
+                // Ceiling congestion → both fall
+                if (a.y <= minY + 10 || b.y <= minY + 10) {
+                    tryChange(a, PetBehavior.FALL)
+                    tryChange(b, PetBehavior.FALL)
+                    continue
+                }
 
-                    // 1. Ceiling Collision (Anti-Congestion)
-                    // If pets bump into each other on the status bar, they lose grip and fall.
-                    // This handles both the "Walking on Ceiling" traffic and "Corner Deadlocks".
-                    val ceilingThreshold = minY + 10
-                    val isCeilingCollision =
-                            petA.y <= ceilingThreshold || petB.y <= ceilingThreshold
+                // Climb collision → asymmetric jump
+                if (a.behavior == PetBehavior.CLIMB_EDGE && b.behavior == PetBehavior.CLIMB_EDGE) {
 
-                    if (isCeilingCollision) {
-                        petA.behavior = PetBehavior.FALL
-                        petB.behavior = PetBehavior.FALL
-                        petA.behaviorTimer = 0
-                        petB.behaviorTimer = 0
-                        continue
-                    }
-
-                    // 2. Wall Collision (Climbing) -> Deterministic Jump (Parkour)
-                    val isClimbingCollision =
-                            petA.behavior == PetBehavior.CLIMB_EDGE ||
-                                    petB.behavior == PetBehavior.CLIMB_EDGE
-
-                    if (isClimbingCollision) {
-                        // WALL COLLISION: Always Jump to opposite wall
-                        petA.behavior = PetBehavior.JUMP
-                        petB.behavior = PetBehavior.JUMP
-
-                        // Initial Jump Velocity
-                        val jumpOutPower = (15 * animationSpeedMultiplier).toInt()
-                        val jumpUpPower = (-10 * animationSpeedMultiplier).toInt()
-
-                        val midScreen = (maxX + minX) / 2
-
-                        // Jump away from current wall
-                        petA.dx = if (petA.x < midScreen) jumpOutPower else -jumpOutPower
-                        petA.dy = jumpUpPower
-
-                        petB.dx = if (petB.x < midScreen) jumpOutPower else -jumpOutPower
-                        petB.dy = jumpUpPower
-                    }
-                    // 3. Ground Collision -> Pass Through (Ghost Mode)
-                    // Do NOTHING. Let them overlap.
-                    else {
-                        // No reaction code here.
-                    }
+                    startJump(a, speed)
+                    tryChange(b, PetBehavior.FALL)
                 }
             }
         }
     }
+
+    // ────────────────────── HELPERS ──────────────────────
+
+    private fun tryChange(pet: PetState, next: PetBehavior) {
+        if (pet.behaviorChangedThisTick) return
+        pet.behavior = next
+        pet.behaviorTimer = 0
+        pet.behaviorChangedThisTick = true
+
+        // Trigger Emote on certain transitions
+        if (next == PetBehavior.SLEEP) {
+            triggerEmote(pet, EmoteType.SLEEPY)
+        } else if (chance(0.05f)) {
+            triggerRandomEmote(pet)
+        }
+    }
+
+    private fun triggerEmote(pet: PetState, emote: EmoteType) {
+        pet.currentEmote = emote
+        pet.emoteTimer = 0
+    }
+
+    private fun triggerRandomEmote(pet: PetState) {
+        val emotes = EmoteType.values().filter { it != EmoteType.NONE }
+        triggerEmote(pet, emotes.random())
+    }
+
+    private fun startJump(pet: PetState, speed: Float) {
+        tryChange(pet, PetBehavior.JUMP)
+        pet.dx = if (pet.x < (maxX + minX) / 2) (15 * speed).toInt() else (-15 * speed).toInt()
+        pet.dy = (-10 * speed).toInt()
+
+        // Surprise emote on jump!
+        if (chance(0.3f)) triggerEmote(pet, EmoteType.SURPRISED)
+    }
+
+    private fun stickToWall(pet: PetState, x: Int) {
+        pet.x = x
+        pet.dy = 0
+        tryChange(pet, PetBehavior.CLIMB_EDGE)
+    }
+
+    private fun clampToBounds(pet: PetState) {
+        pet.x = pet.x.coerceIn(minX, maxX - pet.params.width)
+        pet.y = pet.y.coerceIn(minY, maxY - pet.params.height)
+        pet.params.x = pet.x
+        pet.params.y = pet.y
+    }
+
+    private fun intersects(a: PetState, b: PetState) =
+            android.graphics.Rect.intersects(
+                    android.graphics.Rect(a.x, a.y, a.x + a.params.width, a.y + a.params.height),
+                    android.graphics.Rect(b.x, b.y, b.x + b.params.width, b.y + b.params.height)
+            )
+
+    private fun hitsLeftWall(p: PetState) = p.x <= minX
+    private fun hitsRightWall(p: PetState) = p.x + p.params.width >= maxX
+    private fun hitsCeiling(p: PetState) = p.y <= minY
+    private fun hitsFloor(p: PetState) = p.y + p.params.height >= maxY
+
+    private fun chance(p: Float) = Random.nextFloat() < p
 }

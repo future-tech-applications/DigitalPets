@@ -17,6 +17,11 @@ class PetWindowManager(val context: Context) {
     private val windowManager: WindowManager =
             context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+    /**
+     * Adds a view to the window manager.
+     * @param view The view to add.
+     * @param params The layout parameters for the view.
+     */
     fun addView(view: View, params: WindowManager.LayoutParams) {
         try {
             windowManager.addView(view, params)
@@ -25,6 +30,11 @@ class PetWindowManager(val context: Context) {
         }
     }
 
+    /**
+     * Updates the layout parameters of a view.
+     * @param view The view to update.
+     * @param params The new layout parameters.
+     */
     fun updateViewLayout(view: View, params: WindowManager.LayoutParams) {
         try {
             windowManager.updateViewLayout(view, params)
@@ -33,6 +43,10 @@ class PetWindowManager(val context: Context) {
         }
     }
 
+    /**
+     * Removes a view from the window manager.
+     * @param view The view to remove.
+     */
     fun removeView(view: View) {
         try {
             windowManager.removeView(view)
@@ -41,6 +55,11 @@ class PetWindowManager(val context: Context) {
         }
     }
 
+    /**
+     * Creates a layout parameters object for a pet view.
+     * @param size The size of the pet view.
+     * @return The created layout parameters object.
+     */
     fun createPetLayoutParams(size: Int): WindowManager.LayoutParams {
         val params =
                 WindowManager.LayoutParams(
@@ -58,6 +77,12 @@ class PetWindowManager(val context: Context) {
         return params
     }
 
+    /**
+     * Creates a layout parameters object for a menu view.
+     * @param x The x-coordinate of the menu.
+     * @param y The y-coordinate of the menu.
+     * @return The created layout parameters object.
+     */
     fun createMenuLayoutParams(x: Int, y: Int): WindowManager.LayoutParams {
         val params =
                 WindowManager.LayoutParams(
@@ -76,6 +101,10 @@ class PetWindowManager(val context: Context) {
         return params
     }
 
+    /**
+     * Gets the usable bounds of the screen. It accounts for the system bars and display cutouts.
+     * @return The usable bounds of the screen.
+     */
     fun getUsableBounds(): android.graphics.Rect {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val metrics = windowManager.currentWindowMetrics
