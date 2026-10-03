@@ -50,3 +50,7 @@ captures/
 ehthumbs.db
 Icon?
 Thumbs.db
+
+/shelf/
+/workspace.xml
+
